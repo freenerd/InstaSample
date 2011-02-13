@@ -25,6 +25,7 @@ http://wiki.musichackday.org/index.php?title=InstaSamples
     * OSC/abletonlive/record (CC100/Channel10) on "Play next scene"
     * OSC/abletonlive/stop (CC100/Channel11) on "
   * Make sure, that track you record to in Ableton is armed for record, record on Scene Launch is on, Scene highlight is on first scene you want to record on
+  * Make sure, that the folder /temp exists and is writable
 
 == More Stuff ==
 To get the Audio into Ableton Live, I use SoundFlower. There is probably a nicer way, to get it Files into Live directly (AppleScript? Max4Live?).
