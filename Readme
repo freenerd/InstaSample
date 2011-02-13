@@ -1,0 +1,37 @@
+A hack by Johan Uhle at Music Hack Day New York 2011
+
+For more info on this hack, see the wiki page of the Music Hack Day:
+http://wiki.musichackday.org/index.php?title=InstaSamples
+
+
+== Used stuff ==
+ * Mac OS X 10.6.
+ * Ruby 1.9.2
+ * Gems
+  * Bundler
+  * SoundCloud
+  * osc-ruby
+ * OSCulator
+ * Ableton Live
+ * Soundflower
+
+== Installation/Usage ==
+  * Create a settings.py and enter your SoundCloud Client Credentials and your AccessToken
+  * Start Ableton Live, OSCulator, SoundFlower
+  * Make sure, that SoundFlower 2CH is active.
+  * Set SoundFlower 2CH as standard Output in Mac OS X.
+  * Make sure, that SoundFlower is Input on the track in Ableton you want to record to
+  * Make sure, that Ableton has correct MIDI mapping (maybe remap with the help with the help of OSCulator)
+    * OSC/abletonlive/record (CC100/Channel10) on "Play next scene"
+    * OSC/abletonlive/stop (CC100/Channel11) on "
+  * Make sure, that track you record to in Ableton is armed for record, record on Scene Launch is on, Scene highlight is on first scene you want to record on
+
+== More Stuff ==
+To get the Audio into Ableton Live, I use SoundFlower. There is probably a nicer way, to get it Files into Live directly (AppleScript? Max4Live?).
+
+I did not found a good gem to do MIDI output in Ruby, so I used osc-ruby and OSCulator to send MIDI to Ableton Live.
+
+Changing the SoundCloud query is pretty easy and can alter totally, how this works.
+
+
+
