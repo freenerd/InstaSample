@@ -16,7 +16,7 @@ http://wiki.musichackday.org/index.php?title=InstaSamples
  * Soundflower
 
 == Installation/Usage ==
-  * Create a settings.py and enter your SoundCloud Client Credentials and your AccessToken
+  * Create a settings.rb and enter your SoundCloud Client Credentials and your AccessToken
   * Start Ableton Live, OSCulator, SoundFlower
   * Make sure, that SoundFlower 2CH is active.
   * Set SoundFlower 2CH as standard Output in Mac OS X.
