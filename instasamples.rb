@@ -14,6 +14,7 @@ WAIT_BETWEEN_PLAYBACK = 1
 
 SEARCH_TERM = 'cat'
 DURATION = 5000
+NUMBER_OF_SAMPLES = 6
 
 $client = Soundcloud.new({
  :client_id      => CLIENT_ID,
@@ -74,17 +75,17 @@ class TrackQueue
   end
 
   def get_new_tracks
-    $client.get("/tracks?q=#{SEARCH_TERM}&duration[to]=#{DURATION}&limit=8&filter=public,streamable").each do |t|
+    $client.get("/tracks?q=#{SEARCH_TERM}&duration[to]=#{DURATION}&limit=#{NUMBER_OF_SAMPLES}&filter=public,downloadable").each do |t|
       next if @processed_track_ids.include? t.id
 
       p t.title
 
-      stream_url = t.stream_url.gsub(/^https:/, "http:") +
+      download_url = t.download_url.gsub(/^https:/, "http:") +
         "?consumer_key=#{CLIENT_ID}&secret_token=#{t.secret_token}"
 
-      file_name = "#{t.id}-#{t.permalink}.mp3"
+      file_name = "#{t.id}-#{t.permalink}.#{t.original_format}"
       Kernel.fork do
-        wget_call = "wget -O '#{FILE_DIRECTORY}/#{file_name}' '#{stream_url}'"
+        wget_call = "wget -O '#{FILE_DIRECTORY}/#{file_name}' '#{download_url}'"
         wget = IO.popen(wget_call)
         wget_output = wget.readlines
       end
