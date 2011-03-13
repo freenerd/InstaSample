@@ -8,8 +8,10 @@ GEM
       multipart-post
     httparty (0.7.3)
       crack (= 0.1.8)
-    midiator (0.4.0)
+    mplayer-ruby (0.1.0)
+      open4 (>= 1.0.1)
     multipart-post (1.1.0)
+    open4 (1.0.1)
     soundcloud (0.1.9)
       hashie
       httmultiparty (>= 0.2)
@@ -20,5 +22,5 @@ PLATFORMS
 
 DEPENDENCIES
   bundler
-  midiator
+  mplayer-ruby
   soundcloud

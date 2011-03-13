@@ -1,20 +1,65 @@
 #!/usr/bin/env ruby
 
+# == Synopsis
+#   Instasample lets you play tracks from SoundCloud
+#   It uses mplayer for playback of the streams
+#   This is the customized version for Tim Exile
+#
+# == Examples
+#     Search for ukulele tracks with max duration 12 seconds instasamples.rb -s ukulele -d 12
+#
+# == Usage
+#   instasamples [options]
+#
+# == Options
+#   -s, --search        String to search for on SoundCloud
+#   -d, --duration      Maximum Duration of the returned tracks
+#   -l, --limit         Maximum number of tracks returned (max 200)
+#
+# == Author
+#   Johan Uhle
+
 require File.expand_path('../settings.rb', __FILE__)
 # settings.rb should include:
 #   CLIENT_ID
 #   CLIENT_SECRET
 #   ACCESS_TOKEN
 
+require 'optparse'
+require 'ostruct'
+require 'rdoc/usage'
+
+require 'rubygems'
 require 'soundcloud'
-require 'osc-ruby'
 
-FILE_DIRECTORY = 'temp'
-WAIT_BETWEEN_PLAYBACK = 1
+require File.expand_path("vendor/mplayer-ruby/lib/mplayer-ruby.rb", File.dirname(__FILE__))
 
-SEARCH_TERM = 'cat'
-DURATION = 5000
-NUMBER_OF_SAMPLES = 6
+#
+# Defaults
+#
+
+MPLAYER_PATH = 'vendor/mplayer/mplayer'
+SEARCH_TERM = 'ukulele'
+DURATION = 15000
+LIMIT = 6
+
+#
+# Options
+#
+
+@options = OpenStruct.new
+@options.duration = DURATION
+@options.search_term = SEARCH_TERM
+@options.limit = LIMIT
+
+opts = OptionParser.new do |opts|
+  opts.on('-d', '--duration DURATION')   { |duration| @options.duration = duration * 1000 }
+  opts.on('-s', '--search SEARCH')       { |search|   @options.search_term = search       }
+  opts.on('-l', '--limit NUMBER')        { |limit|    @options.limit = limit              }
+  opts.on_tail('-h', '--help')           { output_help }
+end
+
+opts.parse!(ARGV)
 
 $client = Soundcloud.new({
  :client_id      => CLIENT_ID,
@@ -22,113 +67,45 @@ $client = Soundcloud.new({
  :access_token   => ACCESS_TOKEN
 })
 
-$osc = OSC::Client.new('localhost', 8000)
+def search
+  p "Fetching tracks for #{@options.search_term}"
+  $client.get("/tracks?q=#{@options.search_term}&duration[to]=#{@options.duration}&limit=#{@options.number_of_samples}&filter=public,downloadable").each do |t|
+    stream_url = t.stream_url.gsub(/^https:/, "http:")
+    stream_url += "?consumer_key=#{CLIENT_ID}"
+    stream_url += "&secret_token=#{t.secret_token}" if t.secret_token
 
-class Track
-  attr_accessor :duration, :file_name
+    p "Playing #{t.title} by #{t.user.username} with stream_url #{stream_url}"
+    play stream_url
 
-  def initialize(file_name, duration)
-    @file_name = file_name
-    @duration = duration
-    p "new track saved at #{@file_name}"
+    sleep t.duration / 1000 # wait for
   end
 
-  def play
-    p "Playing track #{@file_name} with duration #{@duration}"
-    Kernel.fork { `afplay #{self.full_file_name}` }
-    sleep 0.22
-    $osc.send( OSC::Message.new("/abletonlive/record"))
-  end
-
-  def full_file_name
-    "#{FILE_DIRECTORY}/#{@file_name}"
-  end
 end
 
-class TrackQueue
-  attr_accessor :processed_track_ids
-
-  def initialize
-    @unplayed_tracks = []
-    @played_tracks = []
-    @processed_track_ids = []
-  end
-
-  def has_unplayed_tracks?
-    @unplayed_tracks.size != 0
-  end
-
-  def play_next_track
-    # find the next finished unplayed track
-    next_track = nil
-    @unplayed_tracks.each do |track|
-      if FileTest.exists?(track.full_file_name)
-        track.play
-        next_track = track.dup
-        @unplayed_tracks = @unplayed_tracks - [track]
-        break
-      else
-        p "track #{track.file_name} does not exist yet"
-      end
-    end
-    next_track
-  end
-
-  def get_new_tracks
-    $client.get("/tracks?q=#{SEARCH_TERM}&duration[to]=#{DURATION}&limit=#{NUMBER_OF_SAMPLES}&filter=public,downloadable").each do |t|
-      next if @processed_track_ids.include? t.id
-
-      p t.title
-
-      download_url = t.download_url.gsub(/^https:/, "http:") +
-        "?consumer_key=#{CLIENT_ID}&secret_token=#{t.secret_token}"
-
-      file_name = "#{t.id}-#{t.permalink}.#{t.original_format}"
-      Kernel.fork do
-        wget_call = "wget -O '#{FILE_DIRECTORY}/#{file_name}' '#{download_url}'"
-        wget = IO.popen(wget_call)
-        wget_output = wget.readlines
-      end
-
-      @unplayed_tracks << Track.new(file_name, t.duration)
-      @processed_track_ids << t.id
-    end
-  end
-end
-
-
-# setup
-track_queue = TrackQueue.new
-
-# play new tracks time
-play_next_track = Time.now.to_i
-
-# get tracks
-track_queue.get_new_tracks
-
-while true
-  p "playing next track at #{play_next_track} (now == #{Time.now.to_i}"
-
-  if play_next_track <= Time.now.to_i
-    p "stop playback"
-    $osc.send( OSC::Message.new("/abletonlive/stop"))
-
-    if track_queue.has_unplayed_tracks?
-      track = track_queue.play_next_track
-      p "New track #{track}"
-      if track
-        play_next_track = Time.now.to_i + (track.duration / 1000) + WAIT_BETWEEN_PLAYBACK
-        p "playing a new track until #{play_next_track}"
-      else
-        play_next_track = Time.now.to_i + 5 + WAIT_BETWEEN_PLAYBACK
-      end
+def play(location)
+  begin
+    if @player
+      @player.load_file location, :append
     else
-      play_next_track = Time.now.to_i + 5 + WAIT_BETWEEN_PLAYBACK
+      new_mplayer_instance location
     end
+  rescue
+    new_mplayer_instance location
   end
-
-  # check for more tracks?
-  #track_queue.get_new_tracks
-
-  sleep 2
 end
+
+def new_mplayer_instance(location)
+  p "New mplayer instance for #{location}"
+  @player = MPlayer::Slave.new location, :path => MPLAYER_PATH
+end
+
+def output_help
+  RDoc::usage() #exits app
+end
+
+#p ARGV
+#if ARGV.length <= 1
+  #output_help
+#end
+
+search

@@ -1,0 +1,3 @@
+[submodule "vendor/mplayer-ruby"]
+	path = vendor/mplayer-ruby
+	url = git://github.com/freenerd/mplayer-ruby.git
