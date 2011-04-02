@@ -28,6 +28,7 @@ require File.expand_path('../settings.rb', __FILE__)
 require 'optparse'
 require 'ostruct'
 require 'rdoc/usage'
+require 'uri'
 
 require 'rubygems'
 require 'soundcloud'
@@ -69,7 +70,7 @@ $client = Soundcloud.new({
 
 def search
   p "Fetching tracks for #{@options.search_term}"
-  $client.get("/tracks?q=#{@options.search_term}&duration[to]=#{@options.duration}&limit=#{@options.number_of_samples}&filter=public,downloadable").each do |t|
+  $client.get("/tracks?q=#{URI::encode @options.search_term}&duration[to]=#{@options.duration}&limit=#{@options.number_of_samples}&filter=public,downloadable").each do |t|
     stream_url = t.stream_url.gsub(/^https:/, "http:")
     stream_url += "?consumer_key=#{CLIENT_ID}"
     stream_url += "&secret_token=#{t.secret_token}" if t.secret_token
