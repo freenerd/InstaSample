@@ -39,8 +39,8 @@ require File.expand_path("vendor/mplayer-ruby/lib/mplayer-ruby.rb", File.dirname
 # Defaults
 #
 
-MPLAYER_PATH = 'vendor/mplayer/mplayer'
-SEARCH_TERM = 'ukulele'
+MPLAYER_PATH = 'vendor/mplayer/mplayer -v'
+SEARCH_TERM = 'tone'
 DURATION = 15000
 LIMIT = 6
 
@@ -69,16 +69,17 @@ $client = Soundcloud.new({
 })
 
 def search
-  p "Fetching tracks for #{@options.search_term}"
+  puts "Fetching tracks for #{@options.search_term}"
   $client.get("/tracks?q=#{URI::encode @options.search_term}&duration[to]=#{@options.duration}&limit=#{@options.number_of_samples}&filter=public,downloadable").each do |t|
     stream_url = t.stream_url.gsub(/^https:/, "http:")
     stream_url += "?consumer_key=#{CLIENT_ID}"
     stream_url += "&secret_token=#{t.secret_token}" if t.secret_token
 
-    p "Playing #{t.title} by #{t.user.username} with stream_url #{stream_url}"
+    puts "Playing #{t.title} by #{t.user.username} with stream_url #{stream_url}"
+    puts t.permalink_url
     play stream_url
 
-    sleep t.duration / 1000 # wait for
+    sleep t.duration / 950 # wait for
   end
 
 end
@@ -96,7 +97,7 @@ def play(location)
 end
 
 def new_mplayer_instance(location)
-  p "New mplayer instance for #{location}"
+  puts "New mplayer instance for #{location}"
   @player = MPlayer::Slave.new location, :path => MPLAYER_PATH
 end
 
