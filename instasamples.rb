@@ -6,15 +6,19 @@
 #   This is the customized version for Tim Exile
 #
 # == Examples
-#     Search for ukulele tracks with max duration 12 seconds instasamples.rb -s ukulele -d 12
+#     Search for ukulele tracks with max duration 12 seconds instasamples.rb search -s ukulele -d 12
+#
 #
 # == Usage
-#   instasamples [options]
+#   instasamples [mode] [options]
+#
+#   mode can either be "search" or "dashboard"
 #
 # == Options
-#   -s, --search        String to search for on SoundCloud
+#   -s, --search        String to search for on SoundCloud (only in search mode)
 #   -d, --duration      Maximum Duration of the returned tracks
 #   -l, --limit         Maximum number of tracks returned (max 200)
+#   -a, --account       Account on which behalf to query (as mapped in settings) (TO BE IMPLEMENTED)
 #
 # == Author
 #   Johan Uhle
@@ -30,16 +34,33 @@ require 'ostruct'
 require 'rdoc/usage'
 require 'uri'
 
+require 'net/http'
+require 'net/https'
+
 require 'rubygems'
 require 'soundcloud'
 
 require File.expand_path("vendor/mplayer-ruby/lib/mplayer-ruby.rb", File.dirname(__FILE__))
 
+
+#
+# No more SSL Certificate warning
+# http://www.5dollarwhitebox.org/drupal/node/64
+#
+class Net::HTTP
+  alias_method :old_initialize, :initialize
+  def initialize(*args)
+    old_initialize(*args)
+    @ssl_context = OpenSSL::SSL::SSLContext.new
+    @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  end
+end
+
 #
 # Defaults
 #
 
-MPLAYER_PATH = 'vendor/mplayer/mplayer -v'
+MPLAYER_PATH = 'vendor/mplayer/mplayer'
 SEARCH_TERM = 'tone'
 DURATION = 15000
 LIMIT = 6
@@ -54,6 +75,7 @@ LIMIT = 6
 @options.limit = LIMIT
 
 opts = OptionParser.new do |opts|
+  opts.on('-m', '--mode MODE')           { |mode|     @options.mode = mode                }
   opts.on('-d', '--duration DURATION')   { |duration| @options.duration = duration * 1000 }
   opts.on('-s', '--search SEARCH')       { |search|   @options.search_term = search       }
   opts.on('-l', '--limit NUMBER')        { |limit|    @options.limit = limit              }
@@ -68,6 +90,19 @@ $client = Soundcloud.new({
  :access_token   => ACCESS_TOKEN
 })
 
+def dashboard
+  puts "Fetching incoming tracks from dashboard for #{$client.get("/me").username}"
+  $client.get("/me/activities/tracks/exclusive").collection.each do |sharing|
+    t = sharing.origin.track
+
+    if t.duration.to_i < @options.duration.to_i
+      play_and_sleep t, t.stream_url + "?oauth_token=#{ACCESS_TOKEN}"
+    else
+      puts "Skipped because is too long. Track is #{t.duration} but limit is #{@options.duration}. Make -d parameter bigger if you want more tracks."
+    end
+  end
+end
+
 def search
   puts "Fetching tracks for #{@options.search_term}"
   $client.get("/tracks?q=#{URI::encode @options.search_term}&duration[to]=#{@options.duration}&limit=#{@options.number_of_samples}&filter=public,downloadable").each do |t|
@@ -75,13 +110,23 @@ def search
     stream_url += "?consumer_key=#{CLIENT_ID}"
     stream_url += "&secret_token=#{t.secret_token}" if t.secret_token
 
-    puts "Playing #{t.title} by #{t.user.username} with stream_url #{stream_url}"
-    puts t.permalink_url
-    play stream_url
-
-    sleep t.duration / 950 # wait for
+    play_and_sleep t, stream_url
   end
+end
 
+def play_and_sleep(t, stream_url)
+  puts "Playing #{t.title} by #{t.user.username} with stream_url #{stream_url}"
+  puts t.permalink_url
+  puts stream_url
+
+  # use any means necessary to somehow get this to work ...
+  http = Net::HTTP.new(URI.parse(stream_url).host, 443)
+  http.use_ssl = true
+  final_stream = http.get(stream_url)['location']
+
+  play final_stream
+
+  sleep t.duration / 950 # wait for
 end
 
 def play(location)
@@ -105,9 +150,10 @@ def output_help
   RDoc::usage() #exits app
 end
 
-#p ARGV
-#if ARGV.length <= 1
-  #output_help
-#end
-
-search
+if ARGV[0] =~ /dash/
+  dashboard
+elsif ARGV[0] =~ /search/
+  search
+else
+  output_help
+end
