@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# VERSION = 0.3
+
 # == Synopsis
 #   Instasample lets you play tracks from SoundCloud
 #   It uses mplayer for playback of the streams
