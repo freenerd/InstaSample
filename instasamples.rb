@@ -62,8 +62,16 @@ end
 
 MPLAYER_PATH = 'vendor/mplayer/mplayer'
 SEARCH_TERM = 'tone'
-DURATION = 15000
+DURATION = 6000
 LIMIT = 6
+WAITING_TIME_BETWEEN_DASHBOARD_QUERIES = 30
+
+#
+# Globals
+#
+
+# To avoid duplicate plays, we keep track of played tracks
+$played_track_ids = []
 
 #
 # Options
@@ -95,12 +103,15 @@ def dashboard
   $client.get("/me/activities/tracks/exclusive").collection.each do |sharing|
     t = sharing.origin.track
 
-    if t.duration.to_i < @options.duration.to_i
+    unless $played_track_ids.include?(t.id)
       play_and_sleep t, t.stream_url + "?oauth_token=#{ACCESS_TOKEN}"
-    else
-      puts "Skipped because is too long. Track is #{t.duration} but limit is #{@options.duration}. Make -d parameter bigger if you want more tracks."
     end
   end
+
+  puts "Waiting #{WAITING_TIME_BETWEEN_DASHBOARD_QUERIES} seconds until we query again"
+  sleep WAITING_TIME_BETWEEN_DASHBOARD_QUERIES
+
+  dashboard
 end
 
 def search
@@ -126,7 +137,23 @@ def play_and_sleep(t, stream_url)
 
   play final_stream
 
-  sleep t.duration / 950 # wait for
+  duration =
+    if t.duration.to_i < @options.duration.to_i
+      t.duration.to_i / 950
+    else
+      @options.duration.to_i / 950
+    end
+
+  sleep duration
+
+  begin
+    # make sure player is not playing anymore
+    @player.quit
+  rescue
+  end
+
+  puts "Successfully played"
+  $played_track_ids << t.id
 end
 
 def play(location)
