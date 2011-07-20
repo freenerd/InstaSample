@@ -85,10 +85,10 @@ $seen_track_ids = []
 @options.limit = LIMIT
 
 opts = OptionParser.new do |opts|
-  opts.on('-m', '--mode MODE')           { |mode|     @options.mode = mode                }
-  opts.on('-d', '--duration DURATION')   { |duration| @options.duration = duration * 1000 }
-  opts.on('-s', '--search SEARCH')       { |search|   @options.search_term = search       }
-  opts.on('-l', '--limit NUMBER')        { |limit|    @options.limit = limit              }
+  opts.on('-m', '--mode MODE')           { |mode|     @options.mode = mode                     }
+  opts.on('-d', '--duration DURATION')   { |duration| @options.duration = duration.to_i * 1000 }
+  opts.on('-s', '--search SEARCH')       { |search|   @options.search_term = search            }
+  opts.on('-l', '--limit NUMBER')        { |limit|    @options.limit = limit                   }
   opts.on_tail('-h', '--help')           { output_help }
 end
 
