@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-# VERSION = 0.3
-
+# Instasamples Version 0.3
+#
 # == Synopsis
 #   Instasample lets you play tracks from SoundCloud
 #   It uses mplayer for playback of the streams
@@ -65,7 +65,7 @@ end
 MPLAYER_PATH = 'vendor/mplayer/mplayer'
 SEARCH_TERM = 'tone'
 DURATION = 10000
-LIMIT = 6
+LIMIT = 10
 WAITING_TIME_BETWEEN_DASHBOARD_QUERIES = 30
 
 #
@@ -73,7 +73,7 @@ WAITING_TIME_BETWEEN_DASHBOARD_QUERIES = 30
 #
 
 # To avoid duplicate plays, we keep track of played tracks
-$played_track_ids = []
+$seen_track_ids = []
 
 #
 # Options
@@ -100,17 +100,19 @@ $client = Soundcloud.new({
  :access_token   => ACCESS_TOKEN
 })
 
-def dashboard
+def dashboard(mode=:live)
   puts "Fetching incoming tracks from dashboard for #{$client.get("/me").username}"
-  $client.get("/me/activities/tracks/exclusive").collection.each do |sharing|
+  $client.get("/me/activities/tracks/exclusive").collection.each_with_index do |sharing, i|
     t = sharing.origin.track
 
-    unless $played_track_ids.include?(t.id)
+    unless $seen_track_ids.include?(t.id) || (mode == :first && i >= @options.limit.to_i)
       play_and_sleep t, t.stream_url + "?oauth_token=#{ACCESS_TOKEN}"
     end
+
+    $seen_track_ids << t.id
   end
 
-  puts "Waiting #{WAITING_TIME_BETWEEN_DASHBOARD_QUERIES} seconds until we query again"
+  puts "Waiting #{WAITING_TIME_BETWEEN_DASHBOARD_QUERIES} seconds before we query again"
   sleep WAITING_TIME_BETWEEN_DASHBOARD_QUERIES
 
   dashboard
@@ -118,7 +120,7 @@ end
 
 def search
   puts "Fetching tracks for #{@options.search_term}"
-  $client.get("/tracks?q=#{URI::encode @options.search_term}&duration[to]=#{@options.duration}&limit=#{@options.number_of_samples}&filter=public,downloadable").each do |t|
+  $client.get("/tracks?q=#{URI::encode @options.search_term}&duration[to]=#{@options.duration}&limit=#{@options.limit}&filter=public,downloadable").each do |t|
     stream_url = t.stream_url.gsub(/^https:/, "http:")
     stream_url += "?consumer_key=#{CLIENT_ID}"
     stream_url += "&secret_token=#{t.secret_token}" if t.secret_token
@@ -155,7 +157,6 @@ def play_and_sleep(t, stream_url)
   end
 
   puts "Successfully played"
-  $played_track_ids << t.id
 end
 
 def play(location)
@@ -180,7 +181,7 @@ def output_help
 end
 
 if ARGV[0] =~ /dash/
-  dashboard
+  dashboard(:first)
 elsif ARGV[0] =~ /search/
   search
 else
