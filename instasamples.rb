@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# Instasamples Version 0.3
+# Instasamples Version 0.3.2
 #
 # == Synopsis
 #   Instasample lets you play tracks from SoundCloud
@@ -156,18 +156,20 @@ def play_and_sleep(t, stream_url)
   rescue
   end
 
-  puts "Successfully played"
+  puts "Played finished"
 end
 
 def play(location)
+  retries = 0
   begin
-    if @player
-      @player.load_file location, :append
-    else
-      new_mplayer_instance location
-    end
-  rescue
     new_mplayer_instance location
+  rescue Exception => e
+    if retries >= 2 || ArgumentError === e
+      puts "Crap, stream failed"
+    else
+      retries += 1
+      retry
+    end
   end
 end
 
