@@ -2,4 +2,5 @@ source :rubygems
 
 gem 'bundler'
 gem 'soundcloud'
-gem 'mplayer-ruby'
+# we roll our own
+# gem 'mplayer-ruby'
